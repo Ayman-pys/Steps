@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>عداد الخطوات</title>
+    <title>عداد الخطوات33</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -68,10 +68,9 @@
 
         function startStepCounter() {
             let lastReading = 0;
-            let threshold = 3; // عتبة أعلى لتقليل الحساسية الزائدة
+            let threshold = 1.0; // عتبة منخفضة لزيادة الحساسية
             let lastStepTime = 0;
-            const minStepInterval = 400; // فاصل زمني أطول لمنع التكرار السريع
-            let isPeak = false; // لتتبع ذروة الحركة
+            const minStepInterval = 300; // فاصل زمني معتدل
 
             window.addEventListener('devicemotion', (event) => {
                 const currentTime = Date.now();
@@ -80,17 +79,14 @@
                 const accelZ = event.acceleration.z || 0;
                 const acceleration = Math.sqrt(accelX * accelX + accelY * accelY + accelZ * accelZ);
 
-                const diff = acceleration - lastReading;
+                const diff = Math.abs(acceleration - lastReading);
                 debugDisplay.textContent = `التسارع: ${acceleration.toFixed(2)}, الفرق: ${diff.toFixed(2)}`;
 
-                // كشف الخطوة بناءً على تغيير التسارع (ذروة موجبة ثم سالبة)
-                if (diff > threshold && !isPeak && (currentTime - lastStepTime) > minStepInterval) {
-                    isPeak = true; // تم اكتشاف ذروة
-                } else if (diff < -threshold && isPeak && (currentTime - lastStepTime) > minStepInterval) {
+                // تسجيل الخطوة إذا تجاوز التغير العتبة مع مراعاة الفاصل الزمني
+                if (diff > threshold && (currentTime - lastStepTime) > minStepInterval) {
                     steps++;
                     stepCountDisplay.textContent = steps;
                     lastStepTime = currentTime;
-                    isPeak = false; // إعادة تعيين بعد الخطوة
                 }
 
                 lastReading = acceleration;
