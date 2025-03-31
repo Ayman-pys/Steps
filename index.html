@@ -27,19 +27,24 @@
             border: none;
             border-radius: 5px;
         }
+        #debug {
+            font-size: 16px;
+            color: #555;
+        }
     </style>
 </head>
 <body>
     <h1>عداد الخطوات</h1>
     <div id="stepCount">0</div>
     <button id="resetBtn">إعادة تعيين</button>
+    <div id="debug"></div>
 
     <script>
         let steps = 0;
         const stepCountDisplay = document.getElementById('stepCount');
         const resetBtn = document.getElementById('resetBtn');
+        const debugDisplay = document.getElementById('debug');
 
-        // التحقق من دعم المستشعر وطلب الإذن
         if ('DeviceMotionEvent' in window) {
             if (typeof DeviceMotionEvent.requestPermission === 'function') {
                 DeviceMotionEvent.requestPermission()
@@ -47,38 +52,35 @@
                         if (permissionState === 'granted') {
                             startStepCounter();
                         } else {
-                            alert('يرجى منح الإذن لاستخدام مستشعر الحركة');
+                            debugDisplay.textContent = 'تم رفض الإذن';
                         }
                     })
                     .catch(err => {
-                        console.error('خطأ في طلب الإذن:', err);
-                        alert('حدث خطأ أثناء طلب الإذن');
+                        debugDisplay.textContent = 'خطأ في الإذن: ' + err;
                     });
             } else {
                 startStepCounter();
             }
         } else {
-            alert('جهازك لا يدعم مستشعر التسارع');
+            debugDisplay.textContent = 'جهازك لا يدعم مستشعر التسارع';
         }
 
         function startStepCounter() {
             let lastReading = 0;
-            let threshold = 1.5; // عتبة الحساسية
+            let threshold = 2; // عتبة أعلى قليلاً للتجربة
             let lastStepTime = 0;
-            const minStepInterval = 300; // الحد الأدنى للوقت بين الخطوات (بالملي ثانية)
+            const minStepInterval = 250; // تقليل الفاصل الزمني لزيادة الحساسية
 
             window.addEventListener('devicemotion', (event) => {
                 const currentTime = Date.now();
-                // حساب التسارع الكلي (x, y, z)
-                const acceleration = Math.sqrt(
-                    Math.pow(event.acceleration.x || 0, 2) +
-                    Math.pow(event.acceleration.y || 0, 2) +
-                    Math.pow(event.acceleration.z || 0, 2)
-                );
+                const accelX = event.acceleration.x || 0;
+                const accelY = event.acceleration.y || 0;
+                const accelZ = event.acceleration.z || 0;
+                const acceleration = Math.sqrt(accelX * accelX + accelY * accelY + accelZ * accelZ);
 
                 const diff = Math.abs(acceleration - lastReading);
-                
-                // التحقق من العتبة والوقت بين الخطوات لتجنب التكرار
+                debugDisplay.textContent = `التسارع: ${acceleration.toFixed(2)}, الفرق: ${diff.toFixed(2)}`;
+
                 if (diff > threshold && (currentTime - lastStepTime) > minStepInterval) {
                     steps++;
                     stepCountDisplay.textContent = steps;
@@ -89,7 +91,6 @@
             });
         }
 
-        // إعادة تعيين العداد
         resetBtn.addEventListener('click', () => {
             steps = 0;
             stepCountDisplay.textContent = steps;
