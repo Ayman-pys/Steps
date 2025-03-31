@@ -30,6 +30,7 @@
         #debug {
             font-size: 16px;
             color: #555;
+            margin-top: 10px;
         }
     </style>
 </head>
@@ -67,9 +68,10 @@
 
         function startStepCounter() {
             let lastReading = 0;
-            let threshold = 2; // عتبة أعلى قليلاً للتجربة
+            let threshold = 3; // عتبة أعلى لتقليل الحساسية الزائدة
             let lastStepTime = 0;
-            const minStepInterval = 250; // تقليل الفاصل الزمني لزيادة الحساسية
+            const minStepInterval = 400; // فاصل زمني أطول لمنع التكرار السريع
+            let isPeak = false; // لتتبع ذروة الحركة
 
             window.addEventListener('devicemotion', (event) => {
                 const currentTime = Date.now();
@@ -78,13 +80,17 @@
                 const accelZ = event.acceleration.z || 0;
                 const acceleration = Math.sqrt(accelX * accelX + accelY * accelY + accelZ * accelZ);
 
-                const diff = Math.abs(acceleration - lastReading);
+                const diff = acceleration - lastReading;
                 debugDisplay.textContent = `التسارع: ${acceleration.toFixed(2)}, الفرق: ${diff.toFixed(2)}`;
 
-                if (diff > threshold && (currentTime - lastStepTime) > minStepInterval) {
+                // كشف الخطوة بناءً على تغيير التسارع (ذروة موجبة ثم سالبة)
+                if (diff > threshold && !isPeak && (currentTime - lastStepTime) > minStepInterval) {
+                    isPeak = true; // تم اكتشاف ذروة
+                } else if (diff < -threshold && isPeak && (currentTime - lastStepTime) > minStepInterval) {
                     steps++;
                     stepCountDisplay.textContent = steps;
                     lastStepTime = currentTime;
+                    isPeak = false; // إعادة تعيين بعد الخطوة
                 }
 
                 lastReading = acceleration;
