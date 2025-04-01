@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>9</title>
+    <title>عداد الخطوات المحسن</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -65,11 +65,9 @@
         function startStepCounting() {
             statusElement.textContent = 'جارٍ تتبع الخطوات...';
             let accelBuffer = []; // مصفوفة لتخزين القراءات
-            const bufferSize = 10; // زيادة الحجم لتصفية أفضل
+            const bufferSize = 5; // تقليل الحجم لزيادة الحساسية
             let lastStepTime = 0;
-            const minStepInterval = 400; // 400 ملي ثانية لتتناسب مع المشي الطبيعي
-            const maxStepInterval = 1000; // الحد الأقصى للاستمرارية
-            let isPeakDetected = false; // للتحقق من الذروة
+            const minStepInterval = 350; // فاصل زمني معتدل للمشي
 
             window.addEventListener('devicemotion', (event) => {
                 const currentTime = Date.now();
@@ -93,20 +91,14 @@
 
                 // حساب المتوسط المتحرك
                 const movingAverage = accelBuffer.reduce((sum, val) => sum + val, 0) / accelBuffer.length;
-                const deviation = magnitude - movingAverage;
-                const threshold = 1.5; // عتبة أعلى لتقليل الحساسية
+                const deviation = Math.abs(magnitude - movingAverage);
+                const threshold = 0.8; // خفض العتبة لزيادة الحساسية
 
-                // اكتشاف النمط الدوري
-                if (deviation > threshold && !isPeakDetected && 
-                    (currentTime - lastStepTime) > minStepInterval && 
-                    (currentTime - lastStepTime) < maxStepInterval) {
-                    isPeakDetected = true; // ذروة
-                } else if (deviation < -threshold && isPeakDetected && 
-                    (currentTime - lastStepTime) > minStepInterval) {
+                // تسجيل الخطوة بناءً على الانحراف
+                if (deviation > threshold && (currentTime - lastStepTime) > minStepInterval) {
                     steps += 1;
                     stepCountElement.textContent = steps;
                     lastStepTime = currentTime;
-                    isPeakDetected = false; // إعادة تعيين بعد تسجيل الخطوة
                     statusElement.textContent = `جارٍ التتبع... (التسارع: ${magnitude.toFixed(2)})`;
                 }
             });
