@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>عداد الخطوات مع رسم بياني</title>
+    <title>123</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -92,23 +92,33 @@
 
         function startStepCounting() {
             statusElement.textContent = 'جارٍ تتبع الخطوات...';
-            let lastReading = 0;
-            let threshold = 1.5; // عتبة الحساسية
-            let timeCounter = 0;
+            let lastMagnitude = 0;
+            let threshold = 1.2; // خفضت العتبة لتكون أكثر حساسية عند حمل الهاتف
+            let minStepInterval = 300; // فاصل زمني بين الخطوات (ملي ثانية)
             let lastStepTime = 0;
-            const minStepInterval = 250; // الحد الأدنى للوقت بين الخطوات (بالملي ثانية)
+            let timeCounter = 0;
+            let isPeak = false; // للتحقق من الذروة والانخفاض في النمط
 
             window.addEventListener('devicemotion', (event) => {
                 const currentTime = Date.now();
-                let acceleration = event.accelerationIncludingGravity.y || 0;
-                let difference = Math.abs(acceleration - lastReading);
-                lastReading = acceleration;
+                const accel = event.accelerationIncludingGravity;
+                // حساب المقدار الكلي للتسارع على جميع المحاور
+                const magnitude = Math.sqrt(
+                    Math.pow(accel.x || 0, 2) +
+                    Math.pow(accel.y || 0, 2) +
+                    Math.pow(accel.z || 0, 2)
+                );
 
-                // التحقق من العتبة والوقت بين الخطوات
-                if (difference > threshold && (currentTime - lastStepTime) > minStepInterval) {
+                const difference = magnitude - lastMagnitude;
+
+                // التحقق من النمط الدوري: ذروة ثم انخفاض
+                if (difference > threshold && !isPeak && (currentTime - lastStepTime) > minStepInterval) {
+                    isPeak = true; // تم اكتشاف ذروة
+                } else if (difference < -threshold && isPeak && (currentTime - lastStepTime) > minStepInterval) {
                     steps += 1;
                     stepCountElement.textContent = steps;
                     lastStepTime = currentTime;
+                    isPeak = false; // إعادة تعيين بعد تسجيل الخطوة
 
                     // تحديث الرسم البياني
                     timeCounter += 1;
@@ -116,6 +126,8 @@
                     stepsChart.data.datasets[0].data.push(steps);
                     stepsChart.update();
                 }
+
+                lastMagnitude = magnitude;
             });
         }
     </script>
