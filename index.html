@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>123</title>
+    <title>عداد الخطوات مع رسم بياني</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -92,42 +92,51 @@
 
         function startStepCounting() {
             statusElement.textContent = 'جارٍ تتبع الخطوات...';
-            let lastMagnitude = 0;
-            let threshold = 1.2; // خفضت العتبة لتكون أكثر حساسية عند حمل الهاتف
-            let minStepInterval = 300; // فاصل زمني بين الخطوات (ملي ثانية)
             let lastStepTime = 0;
+            let minStepInterval = 300; // الحد الأدنى بين الخطوات
             let timeCounter = 0;
-            let isPeak = false; // للتحقق من الذروة والانخفاض في النمط
+            let accelData = []; // نافذة لتخزين بيانات التسارع
+            const windowSize = 10; // حجم النافذة لتحليل البيانات
+            let dynamicThreshold = 1.5; // عتبة ديناميكية
 
             window.addEventListener('devicemotion', (event) => {
                 const currentTime = Date.now();
                 const accel = event.accelerationIncludingGravity;
-                // حساب المقدار الكلي للتسارع على جميع المحاور
                 const magnitude = Math.sqrt(
                     Math.pow(accel.x || 0, 2) +
                     Math.pow(accel.y || 0, 2) +
                     Math.pow(accel.z || 0, 2)
                 );
 
-                const difference = magnitude - lastMagnitude;
-
-                // التحقق من النمط الدوري: ذروة ثم انخفاض
-                if (difference > threshold && !isPeak && (currentTime - lastStepTime) > minStepInterval) {
-                    isPeak = true; // تم اكتشاف ذروة
-                } else if (difference < -threshold && isPeak && (currentTime - lastStepTime) > minStepInterval) {
-                    steps += 1;
-                    stepCountElement.textContent = steps;
-                    lastStepTime = currentTime;
-                    isPeak = false; // إعادة تعيين بعد تسجيل الخطوة
-
-                    // تحديث الرسم البياني
-                    timeCounter += 1;
-                    stepsChart.data.labels.push(timeCounter);
-                    stepsChart.data.datasets[0].data.push(steps);
-                    stepsChart.update();
+                // تخزين البيانات في النافذة
+                accelData.push(magnitude);
+                if (accelData.length > windowSize) {
+                    accelData.shift(); // إزالة أقدم قيمة
                 }
 
-                lastMagnitude = magnitude;
+                // حساب متوسط التسارع وضبط العتبة ديناميكيًا
+                if (accelData.length === windowSize) {
+                    const avg = accelData.reduce((a, b) => a + b, 0) / windowSize;
+                    dynamicThreshold = avg * 0.2; // ضبط العتبة بناءً على المتوسط
+                    const max = Math.max(...accelData);
+                    const min = Math.min(...accelData);
+                    const range = max - min;
+
+                    // اكتشاف الخطوة بناءً على النطاق وفاصل الوقت
+                    if (range > dynamicThreshold && (currentTime - lastStepTime) > minStepInterval) {
+                        steps += 1;
+                        stepCountElement.textContent = steps;
+                        lastStepTime = currentTime;
+
+                        // تحديث الرسم البياني
+                        timeCounter += 1;
+                        stepsChart.data.labels.push(timeCounter);
+                        stepsChart.data.datasets[0].data.push(steps);
+                        stepsChart.update();
+
+                        accelData = []; // إعادة تعيين النافذة بعد تسجيل خطوة
+                    }
+                }
             });
         }
     </script>
