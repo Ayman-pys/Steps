@@ -3,100 +3,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3</title>
+    <title>عداد الخطوات مع رسم بياني</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: center;
             height: 100vh;
             margin: 0;
             background-color: #f0f0f0;
         }
+        h1 {
+            color: #333;
+        }
         #stepCount {
             font-size: 48px;
-            margin: 20px;
+            color: #007BFF;
         }
-        #resetBtn {
-            padding: 10px 20px;
-            font-size: 16px;
-            cursor: pointer;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
+        #status {
+            font-size: 20px;
+            color: #666;
         }
-        #debug {
-            font-size: 16px;
-            color: #555;
-            margin-top: 10px;
+        #chartContainer {
+            width: 80%;
+            max-width: 600px;
+            margin-top: 20px;
         }
     </style>
 </head>
 <body>
     <h1>عداد الخطوات</h1>
-    <div id="stepCount">0</div>
-    <button id="resetBtn">إعادة تعيين</button>
-    <div id="debug"></div>
+    <div>عدد الخطوات: <span id="stepCount">0</span></div>
+    <div id="status">انتظر السماح باستخدام المستشعر...</div>
+    <div id="chartContainer">
+        <canvas id="stepsChart"></canvas>
+    </div>
 
+    <!-- إضافة مكتبة Chart.js من CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         let steps = 0;
-        const stepCountDisplay = document.getElementById('stepCount');
-        const resetBtn = document.getElementById('resetBtn');
-        const debugDisplay = document.getElementById('debug');
+        const stepCountElement = document.getElementById('stepCount');
+        const statusElement = document.getElementById('status');
 
-        if ('DeviceMotionEvent' in window) {
-            if (typeof DeviceMotionEvent.requestPermission === 'function') {
-                DeviceMotionEvent.requestPermission()
-                    .then(permissionState => {
-                        if (permissionState === 'granted') {
-                            startStepCounter();
-                        } else {
-                            debugDisplay.textContent = 'تم رفض الإذن';
-                        }
-                    })
-                    .catch(err => {
-                        debugDisplay.textContent = 'خطأ في الإذن: ' + err;
-                    });
-            } else {
-                startStepCounter();
+        // إعداد الرسم البياني باستخدام Chart.js
+        const ctx = document.getElementById('stepsChart').getContext('2d');
+        const stepsChart = new Chart(ctx, {
+            type: 'line', // نوع الرسم البياني: خطي
+            data: {
+                labels: [], // التسميات (الوقت أو الخطوات)
+                datasets: [{
+                    label: 'عدد الخطوات',
+                    data: [], // البيانات (عدد الخطوات)
+                    borderColor: '#007BFF',
+                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                scales: {
+                    x: { title: { display: true, text: 'الوقت' } },
+                    y: { title: { display: true, text: 'عدد الخطوات' }, beginAtZero: true }
+                }
             }
+        });
+
+        // طلب الإذن لاستخدام مستشعرات الحركة
+        if (typeof DeviceMotionEvent.requestPermission === 'function') {
+            DeviceMotionEvent.requestPermission()
+                .then(permissionState => {
+                    if (permissionState === 'granted') {
+                        startStepCounting();
+                    } else {
+                        statusElement.textContent = 'تم رفض الإذن لاستخدام المستشعر.';
+                    }
+                })
+                .catch(console.error);
         } else {
-            debugDisplay.textContent = 'جهازك لا يدعم مستشعر التسارع';
+            startStepCounting();
         }
 
-        function startStepCounter() {
+        function startStepCounting() {
+            statusElement.textContent = 'جارٍ تتبع الخطوات...';
             let lastReading = 0;
-            let threshold = 1.0; // عتبة منخفضة لزيادة الحساسية
-            let lastStepTime = 0;
-            const minStepInterval = 300; // فاصل زمني معتدل
+            let threshold = 1.5; // عتبة الحساسية
+            let timeCounter = 0; // عداد الوقت للرسم البياني
 
             window.addEventListener('devicemotion', (event) => {
-                const currentTime = Date.now();
-                const accelX = event.acceleration.x || 0;
-                const accelY = event.acceleration.y || 0;
-                const accelZ = event.acceleration.z || 0;
-                const acceleration = Math.sqrt(accelX * accelX + accelY * accelY + accelZ * accelZ);
-
-                const diff = Math.abs(acceleration - lastReading);
-                debugDisplay.textContent = `التسارع: ${acceleration.toFixed(2)}, الفرق: ${diff.toFixed(2)}`;
-
-                // تسجيل الخطوة إذا تجاوز التغير العتبة مع مراعاة الفاصل الزمني
-                if (diff > threshold && (currentTime - lastStepTime) > minStepInterval) {
-                    steps++;
-                    stepCountDisplay.textContent = steps;
-                    lastStepTime = currentTime;
-                }
-
+                let acceleration = event.accelerationIncludingGravity.y || 0;
+                let difference = Math.abs(acceleration - lastReading);
                 lastReading = acceleration;
+
+                if (difference > threshold) {
+                    steps += 1;
+                    stepCountElement.textContent = steps;
+
+                    // تحديث الرسم البياني
+                    timeCounter += 1;
+                    stepsChart.data.labels.push(timeCounter);
+                    stepsChart.data.datasets[0].data.push(steps);
+                    stepsChart.update(); // تحديث الرسم البياني ديناميكيًا
+                }
             });
         }
-
-        resetBtn.addEventListener('click', () => {
-            steps = 0;
-            stepCountDisplay.textContent = steps;
-        });
     </script>
 </body>
 </html>
