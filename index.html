@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>عداد الخطوات مع رسم بياني</title>
+    <title>عداد الخطوات المحسن</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -28,7 +28,6 @@
             cursor: pointer;
         }
         #startButton:hover { background-color: #0056b3; }
-        #chartContainer { width: 80%; max-width: 600px; margin-top: 20px; }
     </style>
 </head>
 <body>
@@ -36,39 +35,12 @@
     <div>عدد الخطوات: <span id="stepCount">0</span></div>
     <div id="status">اضغط على الزر لبدء تتبع الخطوات (ستُطلب الموافقة على iOS)</div>
     <button id="startButton">بدء التتبع</button>
-    <div id="chartContainer">
-        <canvas id="stepsChart"></canvas>
-    </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         let steps = 0;
         const stepCountElement = document.getElementById('stepCount');
         const statusElement = document.getElementById('status');
         const startButton = document.getElementById('startButton');
-
-        // إعداد الرسم البياني
-        const ctx = document.getElementById('stepsChart').getContext('2d');
-        const stepsChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [{
-                    label: 'عدد الخطوات',
-                    data: [],
-                    borderColor: '#007BFF',
-                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
-                    fill: true,
-                    tension: 0.4
-                }]
-            },
-            options: {
-                scales: {
-                    x: { title: { display: true, text: 'الوقت' } },
-                    y: { title: { display: true, text: 'عدد الخطوات' }, beginAtZero: true }
-                }
-            }
-        });
 
         startButton.addEventListener('click', () => {
             if (typeof DeviceMotionEvent.requestPermission === 'function') {
@@ -92,17 +64,21 @@
 
         function startStepCounting() {
             statusElement.textContent = 'جارٍ تتبع الخطوات...';
-            let timeCounter = 0;
+            let lastMagnitude = 0;
+            let threshold = 1.2; // عتبة معتدلة
+            let minStepInterval = 300; // 300 ملي ثانية بين الخطوات
             let lastStepTime = 0;
-            const minStepInterval = 300; // الحد الأدنى بين الخطوات
-            const maxStepInterval = 1000; // الحد الأقصى بين الخطوات (للتأكد من الاستمرارية)
-            let accelBuffer = []; // مصفوفة لتخزين قراءات التسارع
-            const bufferSize = 10; // حجم المصفوفة للمتوسط المتحرك
-            let lastPeak = 0;
+            let accelBuffer = []; // مصفوفة لتخزين القراءات
+            const bufferSize = 5; // حجم المصفوفة لتصفية الضوضاء
 
             window.addEventListener('devicemotion', (event) => {
                 const currentTime = Date.now();
                 const accel = event.accelerationIncludingGravity;
+                if (!accel) {
+                    statusElement.textContent = 'لا تتوفر بيانات المستشعر!';
+                    return;
+                }
+
                 const magnitude = Math.sqrt(
                     Math.pow(accel.x || 0, 2) +
                     Math.pow(accel.y || 0, 2) +
@@ -112,34 +88,21 @@
                 // إضافة القراءة إلى المصفوفة
                 accelBuffer.push(magnitude);
                 if (accelBuffer.length > bufferSize) {
-                    accelBuffer.shift(); // إزالة أقدم قيمة
+                    accelBuffer.shift();
                 }
 
                 // حساب المتوسط المتحرك
                 const movingAverage = accelBuffer.reduce((sum, val) => sum + val, 0) / accelBuffer.length;
-                const deviation = magnitude - movingAverage;
+                const difference = Math.abs(magnitude - movingAverage);
 
-                // اكتشاف الخطوة بناءً على الانحراف عن المتوسط
-                const threshold = 0.8; // عتبة منخفضة مع المتوسط المتحرك
-                if (
-                    deviation > threshold && // ذروة إيجابية
-                    (currentTime - lastStepTime) > minStepInterval && // الحد الأدنى للوقت
-                    (currentTime - lastStepTime) < maxStepInterval && // الحد الأقصى للاستمرارية
-                    magnitude > lastPeak // تأكد من أنها ذروة جديدة
-                ) {
+                if (difference > threshold && (currentTime - lastStepTime) > minStepInterval) {
                     steps += 1;
                     stepCountElement.textContent = steps;
                     lastStepTime = currentTime;
-                    lastPeak = magnitude;
-
-                    // تحديث الرسم البياني
-                    timeCounter += 1;
-                    stepsChart.data.labels.push(timeCounter);
-                    stepsChart.data.datasets[0].data.push(steps);
-                    stepsChart.update();
-                } else if (deviation < -threshold) {
-                    lastPeak = 0; // إعادة تعيين بعد الانخفاض
+                    statusElement.textContent = `جارٍ التتبع... (التسارع: ${magnitude.toFixed(2)})`;
                 }
+
+                lastMagnitude = magnitude;
             });
         }
     </script>
