@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>9289270457678122685309790576394068455377950583925135384290306857</title>
+    <title>عداد الخطوات مع رسم بياني</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -92,29 +92,53 @@
 
         function startStepCounting() {
             statusElement.textContent = 'جارٍ تتبع الخطوات...';
-            let lastReading = 0;
-            let threshold = 1.5; // عتبة الحساسية
             let timeCounter = 0;
             let lastStepTime = 0;
-            const minStepInterval = 250; // الحد الأدنى للوقت بين الخطوات (بالملي ثانية)
+            const minStepInterval = 300; // الحد الأدنى بين الخطوات
+            const maxStepInterval = 1000; // الحد الأقصى بين الخطوات (للتأكد من الاستمرارية)
+            let accelBuffer = []; // مصفوفة لتخزين قراءات التسارع
+            const bufferSize = 10; // حجم المصفوفة للمتوسط المتحرك
+            let lastPeak = 0;
 
             window.addEventListener('devicemotion', (event) => {
                 const currentTime = Date.now();
-                let acceleration = event.accelerationIncludingGravity.y || 0;
-                let difference = Math.abs(acceleration - lastReading);
-                lastReading = acceleration;
+                const accel = event.accelerationIncludingGravity;
+                const magnitude = Math.sqrt(
+                    Math.pow(accel.x || 0, 2) +
+                    Math.pow(accel.y || 0, 2) +
+                    Math.pow(accel.z || 0, 2)
+                );
 
-                // التحقق من العتبة والوقت بين الخطوات
-                if (difference > threshold && (currentTime - lastStepTime) > minStepInterval) {
+                // إضافة القراءة إلى المصفوفة
+                accelBuffer.push(magnitude);
+                if (accelBuffer.length > bufferSize) {
+                    accelBuffer.shift(); // إزالة أقدم قيمة
+                }
+
+                // حساب المتوسط المتحرك
+                const movingAverage = accelBuffer.reduce((sum, val) => sum + val, 0) / accelBuffer.length;
+                const deviation = magnitude - movingAverage;
+
+                // اكتشاف الخطوة بناءً على الانحراف عن المتوسط
+                const threshold = 0.8; // عتبة منخفضة مع المتوسط المتحرك
+                if (
+                    deviation > threshold && // ذروة إيجابية
+                    (currentTime - lastStepTime) > minStepInterval && // الحد الأدنى للوقت
+                    (currentTime - lastStepTime) < maxStepInterval && // الحد الأقصى للاستمرارية
+                    magnitude > lastPeak // تأكد من أنها ذروة جديدة
+                ) {
                     steps += 1;
                     stepCountElement.textContent = steps;
                     lastStepTime = currentTime;
+                    lastPeak = magnitude;
 
                     // تحديث الرسم البياني
                     timeCounter += 1;
                     stepsChart.data.labels.push(timeCounter);
                     stepsChart.data.datasets[0].data.push(steps);
                     stepsChart.update();
+                } else if (deviation < -threshold) {
+                    lastPeak = 0; // إعادة تعيين بعد الانخفاض
                 }
             });
         }
