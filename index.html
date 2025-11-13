@@ -1,123 +1,39 @@
 <!DOCTYPE html>
-<html lang="ar">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>رسم بياني</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f0f0f0;
-        }
-        h1 { color: #333; }
-        #stepCount { font-size: 48px; color: #007BFF; }
-        #status { font-size: 20px; color: #666; margin: 10px 0; }
-        #startButton {
-            padding: 10px 20px;
-            font-size: 18px;
-            background-color: #007BFF;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        #startButton:hover { background-color: #0056b3; }
-        #chartContainer { width: 80%; max-width: 600px; margin-top: 20px; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Programming Quiz App</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1>عداد الخطوات</h1>
-    <div>عدد الخطوات: <span id="stepCount">0</span></div>
-    <div id="status">اضغط على الزر لبدء تتبع الخطوات (ستُطلب الموافقة على iOS)</div>
-    <button id="startButton">بدء التتبع</button>
-    <div id="chartContainer">
-        <canvas id="stepsChart"></canvas>
+  <div class="quiz-container">
+    <h2>Programming Quiz App</h2>
+
+    <div class="category">
+      <h3>Select Category</h3>
+      <div class="options">
+        <button class="cat-btn" data-category="Python">Python</button>
+        <button class="cat-btn" data-category="Sql">SQL</button>
+        <button class="cat-btn" data-category="F-E-D">Front-End</button>
+        <button class="cat-btn" data-category="Basics">Basics</button>
+      </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
-        let steps = 0;
-        const stepCountElement = document.getElementById('stepCount');
-        const statusElement = document.getElementById('status');
-        const startButton = document.getElementById('startButton');
+    <div class="questions-num">
+      <h3>Select Number of Questions</h3>
+      <div class="options">
+        <button class="num-btn" data-num="5">5</button>
+        <button class="num-btn" data-num="10">10</button>
+        <button class="num-btn" data-num="15">15</button>
+        <button class="num-btn" data-num="20">20</button>
+        <button class="num-btn" data-num="25">25</button>
+      </div>
+    </div>
 
-        // إعداد الرسم البياني
-        const ctx = document.getElementById('stepsChart').getContext('2d');
-        const stepsChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [{
-                    label: 'عدد الخطوات',
-                    data: [],
-                    borderColor: '#007BFF',
-                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
-                    fill: true,
-                    tension: 0.4
-                }]
-            },
-            options: {
-                scales: {
-                    x: { title: { display: true, text: 'الوقت' } },
-                    y: { title: { display: true, text: 'عدد الخطوات' }, beginAtZero: true }
-                }
-            }
-        });
+    <button id="start-btn">Start Quiz</button>
+  </div>
 
-        startButton.addEventListener('click', () => {
-            if (typeof DeviceMotionEvent.requestPermission === 'function') {
-                DeviceMotionEvent.requestPermission()
-                    .then(permissionState => {
-                        if (permissionState === 'granted') {
-                            startStepCounting();
-                            startButton.style.display = 'none';
-                        } else {
-                            statusElement.textContent = 'تم رفض الإذن لاستخدام المستشعر.';
-                        }
-                    })
-                    .catch(error => {
-                        statusElement.textContent = 'خطأ: ' + error.message;
-                    });
-            } else {
-                startStepCounting();
-                startButton.style.display = 'none';
-            }
-        });
-
-        function startStepCounting() {
-            statusElement.textContent = 'جارٍ تتبع الخطوات...';
-            let lastReading = 0;
-            let threshold = 1.5; // عتبة الحساسية
-            let timeCounter = 0;
-            let lastStepTime = 0;
-            const minStepInterval = 250; // الحد الأدنى للوقت بين الخطوات (بالملي ثانية)
-
-            window.addEventListener('devicemotion', (event) => {
-                const currentTime = Date.now();
-                let acceleration = event.accelerationIncludingGravity.y || 0;
-                let difference = Math.abs(acceleration - lastReading);
-                lastReading = acceleration;
-
-                // التحقق من العتبة والوقت بين الخطوات
-                if (difference > threshold && (currentTime - lastStepTime) > minStepInterval) {
-                    steps += 1;
-                    stepCountElement.textContent = steps;
-                    lastStepTime = currentTime;
-
-                    // تحديث الرسم البياني
-                    timeCounter += 1;
-                    stepsChart.data.labels.push(timeCounter);
-                    stepsChart.data.datasets[0].data.push(steps);
-                    stepsChart.update();
-                }
-            });
-        }
-    </script>
+  <script src="main.js"></script>
 </body>
 </html>
